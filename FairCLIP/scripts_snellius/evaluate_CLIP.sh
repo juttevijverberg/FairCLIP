@@ -7,7 +7,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=slurm_output_%A.out
 
-DATASET_DIR=/PATH-TO_DATASET/FairVLMed
+DATASET_DIR=/FairCLIP/FairVLMed
 RESULT_DIR=.
 MODEL_ARCH=vit-b16  # Options: vit-b16 | vit-l14
 MODALITY_TYPE='slo_fundus'
