@@ -7,7 +7,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=slurm_output_%A.out
 
-DATASET_DIR=/FairCLIP/FairVLMed
+DATASET_DIR=../../FairVLMed
 RESULT_DIR=.
 MODEL_ARCH=vit-b16 # Options: vit-b16 | vit-l14
 NUM_EPOCH=10
@@ -18,6 +18,8 @@ LR=1e-5
 BATCH_SIZE=32
 
 PERF_FILE=${MODEL_ARCH}_${MODALITY_TYPE}.csv
+
+source activate fairclip
 
 python ./finetune_CLIP.py \
 		--dataset_dir ${DATASET_DIR} \
