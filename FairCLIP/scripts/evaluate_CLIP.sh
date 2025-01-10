@@ -6,7 +6,7 @@ MODALITY_TYPE='slo_fundus'
 LR=1e-5
 BATCH_SIZE=32
 
-PERF_FILE=${MODEL_ARCH}_${MODALITY_TYPE}.csv
+PERF_FILE=${MODEL _ARCH}_${MODALITY_TYPE}.csv
 
 python ./evaluate_CLIP.py \
 		--dataset_dir ${DATASET_DIR} \
