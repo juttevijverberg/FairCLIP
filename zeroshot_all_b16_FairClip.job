@@ -1,0 +1,134 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=eval_FairCLIP
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_output_%A.out
+
+DATASET_DIR=./FairVLMed/Dataset/dataset-001
+RESULT_DIR=./results_pp
+CLIP_MODEL=FairCLIP # Options: CLIP, FairCLIP
+MODEL_ARCH=vit-b16  # Options: vit-b16 | vit-l14
+MODALITY_TYPE='slo_fundus'
+LR=1e-5
+BATCH_SIZE=32
+
+PERF_FILE=Eval_FairCLIP_${MODEL_ARCH}
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+source activate fairclip
+
+SEED=42
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_race.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race_seed${SEED}_auc0.6879/clip_ep002.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_gender.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender_seed${SEED}_auc0.6697/clip_ep002.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_ethnicity.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity_seed${SEED}_auc0.6930/clip_ep002.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_language.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language_seed${SEED}_auc0.6744/clip_ep006.pth \
+                --seed ${SEED}
+
+SEED=43
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_race.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race_seed${SEED}_auc0.7072/clip_ep002.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_gender.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender_seed${SEED}_auc0.6585/clip_ep002.pth \
+                --seed ${SEED}
+
+python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_ethnicity.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity_seed${SEED}_auc0.6820/clip_ep002.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_language.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language_seed${SEED}_auc0.6662/clip_ep003.pth \
+                --seed ${SEED}
+
+SEED=44
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_race.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_race_seed${SEED}_auc0.6818/clip_ep000.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_gender.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_gender_seed${SEED}_auc0.6646/clip_ep001.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_ethnicity.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_ethnicity_seed${SEED}_auc0.6864/clip_ep001.pth \
+                --seed ${SEED}
+
+#python ./FairCLIP/evaluate_CLIP.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE}_language.csv \
+                --model_arch ${MODEL_ARCH} \
+                --pretrained_weights ./results_geenfraude/glaucoma_${CLIP_MODEL}_${MODEL_ARCH}_language_seed${SEED}_auc0.7032/clip_ep003.pth \
+                --seed ${SEED}

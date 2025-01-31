@@ -19,11 +19,10 @@ import torch.nn.functional as F
 import sys
 sys.path.append('.')
 
-from src.modules import *
+from src.modules_2 import *
 from src import logger
 
-
-parser = argparse.ArgumentParser(description='FairCLIP Training/Fine-Tuning')
+parser = argparse.ArgumentParser(description='CLIP Training/Fine-Tuning')
 
 parser.add_argument('--seed', default=-1, type=int,
                     help='seed for initializing training. ')
@@ -49,7 +48,8 @@ parser.add_argument('--pretrained_weights', default='', type=str)
 parser.add_argument('--attribute', default='race', type=str, help='race|gender|ethnicity|language')
 parser.add_argument('--batchsize_fairloss', default=64, type=int)
 parser.add_argument('--lambda_fairloss', default=1e-4, type=float)
-parser.add_argument('--sinkhorn_blur', default=1e-4, type=float)
+parser.add_argument('--tmp_hp', default=1e-4, type=float)
+parser.add_argument('--predict', default='glaucoma', type=str)
 
 
 if __name__ == '__main__':
@@ -61,9 +61,9 @@ if __name__ == '__main__':
 
     logger.log(f'===> random seed: {args.seed}')
 
-    logger.configure(dir=args.result_dir, log_suffix='train')
+    logger.configure(dir=args.result_dir, log_suffix='eval')
 
-    with open(os.path.join(args.result_dir, f'args_train.txt'), 'w') as f:
+    with open(os.path.join(args.result_dir, f'args_eval.txt'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
 
     # the number of groups in each attribute
@@ -77,6 +77,7 @@ if __name__ == '__main__':
     auc_head_str = ''
     dpd_head_str = ''
     eod_head_str = ''
+    pdd_head_str = ''
     esacc_head_str = ''
     esauc_head_str = ''
     group_disparity_head_str = ''
@@ -86,13 +87,14 @@ if __name__ == '__main__':
                 auc_head_str += ', '.join([f'auc_attr{i}_group{x}' for x in range(groups_in_attrs[i])]) + ', '
             dpd_head_str += ', '.join([f'dpd_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             eod_head_str += ', '.join([f'eod_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
+            pdd_head_str += ', '.join([f'pdd_head{x}' for x in range(len(groups_in_attrs))]) + ', '
             esacc_head_str += ', '.join([f'esacc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             esauc_head_str += ', '.join([f'esauc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
 
             group_disparity_head_str += ', '.join([f'std_group_disparity_attr{x}, max_group_disparity_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             
             with open(best_global_perf_file, 'w') as f:
-                f.write(f'epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_head_str} path\n')
+                f.write(f'epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_head_str} path\n')
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu" # If using GPU then use mixed precision training.
     model, preprocess = clip.load(model_arch_mapping[args.model_arch], device=device, jit=False) #Must set jit=False for training
@@ -104,11 +106,11 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True, drop_last=False)
 
-    val_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Validation')
+    val_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Validation', predict=args.predict)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True, drop_last=False)
 
-    test_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Test')
+    test_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Test', predict=args.predict)
     test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True, drop_last=False)
     
@@ -118,7 +120,7 @@ if __name__ == '__main__':
     for i in range(groups_in_attrs[attr_to_idx[args.attribute]]):
         tmp_dataset = fair_vl_group_dataset(args.dataset_dir, preprocess, 
                 text_source='note', summarized_note_file=args.summarized_note_file, 
-                attribute=args.attribute, thegroup=i)
+                attribute=args.attribute, thegroup=i, predict=args.predict)
         tmp_dataloader = DataLoader(tmp_dataset, batch_size=args.batchsize_fairloss, shuffle=True,
             num_workers=args.workers, pin_memory=True, drop_last=False)
         group_dataloaders.append(endless_loader(tmp_dataloader))
@@ -149,14 +151,13 @@ if __name__ == '__main__':
         {"params": model.transformer.parameters(), "lr": args.lr},
         {"params": model.visual.parameters(), "lr": args.lr},
     ], lr=args.lr, betas=(0.1, 0.1), eps=1e-6,weight_decay=args.weight_decay)
-    
-    loss_for_FairCLIP = SamplesLoss(loss="sinkhorn", p=2, blur=args.sinkhorn_blur)
 
-    # if args.pretrained_weights != "":
-    #     checkpoint = torch.load(args.pretrained_weights)
+    loss_for_FairCLIP = SamplesLoss(loss="sinkhorn", p=2, blur=args.tmp_hp) # 0.05
 
+    if args.pretrained_weights != "":
+        checkpoint = torch.load(args.pretrained_weights)
+        model.load_state_dict(checkpoint['model_state_dict'])
     #     start_epoch = checkpoint['epoch'] + 1
-    #     model.load_state_dict(checkpoint['model_state_dict'])
     #     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     best_epoch = 0
@@ -170,58 +171,15 @@ if __name__ == '__main__':
     best_es_auc = sys.float_info.min
     best_between_group_disparity = None
 
-    for epoch in range(args.num_epochs):
+    for epoch in range(1):
         avg_loss = 0
-        for batch in train_dataloader :
-            optimizer.zero_grad()
-
-            images, texts, label_and_attributes = batch 
-
-            images= images.to(device)
-            texts = texts.to(device)
-
-            logits_per_image, logits_per_text = model(images, texts)
-
-            ground_truth = torch.arange(len(images),dtype=torch.long,device=device)
-
-            total_loss = (loss_img(logits_per_image,ground_truth) + loss_txt(logits_per_text,ground_truth))/2
-            
-            similarity = (logits_per_image @ logits_per_text.T)
-            correlations_with_batch = similarity.diag().float()
-            correlations_groups = []
-            
-            for x in group_dataloaders:
-                images_dist, texts_dist, label_and_attributes_dist = next(x)
-                images_dist= images_dist.to(device)
-                texts_dist = texts_dist.to(device)
-                with torch.no_grad():
-                    img_feats, txt_feats = model(images_dist, texts_dist)
-
-                similarity = (img_feats @ txt_feats.T)
-                correlations_with_group = similarity.diag().float()
-                correlations_with_group /= correlations_with_group.sum()
-                
-                total_loss = total_loss + args.lambda_fairloss * loss_for_FairCLIP(correlations_with_batch[:,None], correlations_with_group[:,None])
-
-            total_loss.backward()
-            if device == "cpu":
-                optimizer.step()
-            else : 
-                convert_models_to_fp32(model)
-                optimizer.step()
-                clip.model.convert_weights(model)
-            avg_loss += total_loss.item()
-            
-
-
-        avg_loss /= len(train_dataloader)
         
         # iterate over test dataset
         eval_avg_loss = 0
         all_probs = []
         all_labels = []
         all_attrs = []
-        for batch in val_dataloader :
+        for batch in test_dataloader :
             images,texts, label_and_attributes = batch 
 
             images= images.to(device)
@@ -248,17 +206,26 @@ if __name__ == '__main__':
             all_attrs.append(attributes.cpu().numpy())
 
             # apply binary cross entropy loss
-            loss = F.binary_cross_entropy(vl_prob[:,1].float(), glaucoma_labels.float())
+            if args.predict =='glaucoma':
+                loss = F.binary_cross_entropy(vl_prob[:,1].float(), glaucoma_labels.float())
+            elif args.predict=='race':
+                loss = F.cross_entropy(vl_logits, attributes[:, 0].long())
+            elif args.predict =='gender':
+                loss = F.binary_cross_entropy(vl_prob[:,1].float(), attributes[:, 1].float())
+            elif args.predict =='ethnicity':
+                loss = F.binary_cross_entropy(vl_prob[:,1].float(), attributes[:, 2].float())
+            elif args.predict =='language':
+                loss = F.cross_entropy(vl_logits, attributes[:, 3].long())
             eval_avg_loss += loss.item()
 
         all_probs = np.concatenate(all_probs, axis=0)
         all_labels = np.concatenate(all_labels, axis=0)
         all_attrs = np.concatenate(all_attrs, axis=0)
-        eval_avg_loss /= len(val_dataloader)
+        eval_avg_loss /= len(test_dataloader)
 
-        logger.log(f'===> epoch[{epoch:03d}/{args.num_epochs:03d}], training loss: {avg_loss:.4f}, eval loss: {eval_avg_loss:.4f}')
+        logger.log(f'===> epoch[{epoch:03d}/{args.num_epochs:03d}], eval loss: {eval_avg_loss:.4f}')
 
-        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
+        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity, eval_pdds = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
 
         if best_auc <= overall_auc:
             best_auc = overall_auc
@@ -267,6 +234,7 @@ if __name__ == '__main__':
             best_auc_groups = eval_aucs_by_attrs
             best_dpd_groups = eval_dpds
             best_eod_groups = eval_eods
+            best_pdd_groups = eval_pdds
             best_es_acc = eval_es_acc
             best_es_auc = eval_es_auc
             best_between_group_disparity = between_group_disparity
@@ -310,6 +278,9 @@ if __name__ == '__main__':
             logger.logkv(f'eval_dpd_attr{ii}', round(eval_dpds[ii],4))
         for ii in range(len(eval_eods)):
             logger.logkv(f'eval_eod_attr{ii}', round(eval_eods[ii],4))
+        for ii in range(len(eval_eods)):
+            logger.logkv(f'eval_pdd_attr{ii}', round(eval_pdds[ii], 4))
+    
 
         logger.dumpkvs()
     
@@ -330,8 +301,9 @@ if __name__ == '__main__':
                 
                 dpd_head_str = ', '.join([f'{x:.4f}' for x in best_dpd_groups]) + ', '
                 eod_head_str = ', '.join([f'{x:.4f}' for x in best_eod_groups]) + ', '
+                pdd_head_str = ', '.join([f'{x:.4f}' for x in best_pdd_groups]) + ', '
 
                 path_str = f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}'
-                f.write(f'{best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_str} {path_str}\n')
+                f.write(f'{best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_str} {path_str}\n')
 
     os.rename(args.result_dir, f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}')

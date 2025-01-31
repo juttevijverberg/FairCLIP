@@ -28,4 +28,4 @@ python ./finetune_CLIP.py \
 		--batch_size ${BATCH_SIZE} \
 		--perf_file ${PERF_FILE} \
 		--model_arch ${MODEL_ARCH} \
-		--summarized_note_file ${SUMMARIZED_NOTE_FILE} 
+		--summarized_note_file ${SUMMARIZED_NOTE_FILE}

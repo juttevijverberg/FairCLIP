@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=linear_probe_CLIP
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:10:00
+#SBATCH --output=slurm_output_%A.out
+
+PERF_FILE=${MODEL_ARCH}_${MODALITY_TYPE}.csv
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+source activate fairclip
+
+cd ./mae
+DATA_DIR="../FairVLMe"
+FEATS_TYPE=image # [image, multimodal]
+
+PRETRAIN_CHKPT="../LAVIS/lavis/PRETRAIN_EXPS/Pretrain_Stage1/"
+EXP_NAME=slurm_temp
+MODEL_TYPE=blip2 # [clip, blip2]
+
+OMP_NUM_THREADS=1 python -m torch.distributed.launch --master_port=29501 --nproc_per_node=1 main_linprobe.py --model_type ${MODEL_TYPE} --vl_feats_type ${FEATS_TYPE} --blip_feats_select avgpool --cfg-path ../LAVIS/lavis/projects/blip2/train/pretrain_stage1.yaml --vision_encoder_weights clip --summary_type original --batch_size 512 --model vit_large_patch16 --cls_token --finetune ${PRETRAIN_CHKPT} --epochs 1000 --blr 0.1 --weight_decay 0.0 --data_path ${DATA_DIR} --output_dir $EXP_NAME --log_dir $EXP_NAME --nb_classes 2 > ${EXP_NAME}.out

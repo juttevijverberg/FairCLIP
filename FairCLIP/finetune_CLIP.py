@@ -70,6 +70,7 @@ if __name__ == '__main__':
     auc_head_str = ''
     dpd_head_str = ''
     eod_head_str = ''
+    pdd_head_str = ''
     esacc_head_str = ''
     esauc_head_str = ''
     group_disparity_head_str = ''
@@ -79,13 +80,14 @@ if __name__ == '__main__':
                 auc_head_str += ', '.join([f'auc_attr{i}_group{x}' for x in range(groups_in_attrs[i])]) + ', '
             dpd_head_str += ', '.join([f'dpd_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             eod_head_str += ', '.join([f'eod_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
+            pdd_head_str += ', '.join([f'pdd_head{x}' for x in range(len(groups_in_attrs))]) + ', '
             esacc_head_str += ', '.join([f'esacc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             esauc_head_str += ', '.join([f'esauc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
 
             group_disparity_head_str += ', '.join([f'std_group_disparity_attr{x}, max_group_disparity_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             
             with open(best_global_perf_file, 'w') as f:
-                f.write(f'epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_head_str} path\n')
+                f.write(f'data, epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_head_str} path\n')
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu" # If using GPU then use mixed precision training.
     model, preprocess = clip.load(model_arch_mapping[args.model_arch], device=device, jit=False) #Must set jit=False for training
@@ -95,7 +97,7 @@ if __name__ == '__main__':
 
     train_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Training', text_source=args.text_source, summarized_note_file=args.summarized_note_file)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True, drop_last=False)
+        num_workers=args.workers, pin_memory=True, drop_last=False)  # get_item returns image, summarized note and label & attrbutes
 
     val_dataset = fair_vl_med_dataset(args.dataset_dir, preprocess, subset='Validation')
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,
@@ -119,7 +121,7 @@ if __name__ == '__main__':
     def convert_models_to_fp32(model): 
         for p in model.parameters(): 
             p.data = p.data.float() 
-            p.grad.data = p.grad.data.float() 
+            p.grad.data = p.grad.data.float()
 
 
     if device == "cpu":
@@ -179,12 +181,12 @@ if __name__ == '__main__':
 
         avg_loss /= len(train_dataloader)
         
-        # iterate over test dataset
+        # iterate over validation dataset 
         eval_avg_loss = 0
         all_probs = []
         all_labels = []
         all_attrs = []
-        for batch in test_dataloader :
+        for batch in val_dataloader :
             images,texts, label_and_attributes = batch 
 
             images= images.to(device)
@@ -217,11 +219,11 @@ if __name__ == '__main__':
         all_probs = np.concatenate(all_probs, axis=0)
         all_labels = np.concatenate(all_labels, axis=0)
         all_attrs = np.concatenate(all_attrs, axis=0)
-        eval_avg_loss /= len(test_dataloader)
+        eval_avg_loss /= len(val_dataloader)
 
         logger.log(f'===> epoch[{epoch:03d}/{args.num_epochs:03d}], training loss: {avg_loss:.4f}, eval loss: {eval_avg_loss:.4f}')
 
-        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
+        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity, eval_pdds = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
 
         if best_auc <= overall_auc:
             best_auc = overall_auc
@@ -230,6 +232,7 @@ if __name__ == '__main__':
             best_auc_groups = eval_aucs_by_attrs
             best_dpd_groups = eval_dpds
             best_eod_groups = eval_eods
+            best_pdd_groups = eval_pdds
             best_es_acc = eval_es_acc
             best_es_auc = eval_es_auc
             best_between_group_disparity = between_group_disparity
@@ -273,6 +276,8 @@ if __name__ == '__main__':
             logger.logkv(f'eval_dpd_attr{ii}', round(eval_dpds[ii],4))
         for ii in range(len(eval_eods)):
             logger.logkv(f'eval_eod_attr{ii}', round(eval_eods[ii],4))
+        for ii in range(len(eval_eods)):
+            logger.logkv(f'eval_pdd_attr{ii}', round(eval_pdds[ii], 4))
 
         logger.dumpkvs()
     
@@ -293,8 +298,9 @@ if __name__ == '__main__':
                 
                 dpd_head_str = ', '.join([f'{x:.4f}' for x in best_dpd_groups]) + ', '
                 eod_head_str = ', '.join([f'{x:.4f}' for x in best_eod_groups]) + ', '
+                pdd_head_str = ', '.join([f'{x:.4f}' for x in best_pdd_groups]) + ', '
 
                 path_str = f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}'
-                f.write(f'{best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_str} {path_str}\n')
+                f.write(f'val, {best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_str} {path_str}\n')
 
     os.rename(args.result_dir, f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}')

@@ -165,3 +165,10 @@ cython_debug/
 # Data Folder
 FairVLMed/
 .DS_Store
+results/
+results_pp/
+results_zero_zero/
+results_geenfraude/
+results_predict_attr/
+results_vision_only/
+mae/results/

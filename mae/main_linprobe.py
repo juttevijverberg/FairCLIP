@@ -13,6 +13,7 @@ import argparse
 import datetime
 import json
 import numpy as np
+import pandas as pd
 import os
 import time
 from pathlib import Path
@@ -225,9 +226,8 @@ def main(args):
             print('Load ViT (ImageNet) weights')
         elif args.model_type == 'mae':
             checkpoint = torch.load(args.finetune, map_location='cpu')
-            print("Load MAE pre-trained checkpoint from: %s" % args.finetune)
             checkpoint_model = checkpoint['model']
-            
+
         state_dict = model.state_dict()
         for k in ['head.weight', 'head.bias']:
             if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
@@ -274,14 +274,47 @@ def main(args):
 
     elif args.model_type == 'clip':
         model, _ = clip.load("ViT-L/14", device="cpu")
-        if args.finetune != "ViT-L/14":
-            model.load_state_dict(torch.load(args.finetune, map_location="cpu")["model_state_dict"])
-        if args.vl_feats_type == 'image':
-            model.head = torch.nn.Linear(768, args.nb_classes)
-        elif args.vl_feats_type == 'multimodal':
-            model.head = torch.nn.Linear(2*768, args.nb_classes)
-        trunc_normal_(model.head.weight, std=0.01)
-        model.head = torch.nn.Sequential(torch.nn.BatchNorm1d(model.head.in_features, affine=False, eps=1e-6), model.head)
+        if args.eval == True:
+            if args.vl_feats_type == 'image':
+                model.head = torch.nn.Linear(768, args.nb_classes)
+            elif args.vl_feats_type == 'multimodal':
+                model.head = torch.nn.Linear(2*768, args.nb_classes)
+            trunc_normal_(model.head.weight, std=0.01)
+            model.head = torch.nn.Sequential(torch.nn.BatchNorm1d(model.head.in_features, affine=False, eps=1e-6), model.head)
+           
+            checkpoint = torch.load(args.finetune, map_location="cpu")
+            print(f"Checkpoint keys: {checkpoint.keys()}")  # Debug checkpoint structure
+            if "model_state_dict" in checkpoint:
+                print("Loading 'model_state_dict' from checkpoint.")
+                model.load_state_dict(checkpoint["model_state_dict"])
+            elif "model" in checkpoint:
+                print("Loading 'model' from checkpoint.")
+                print(f"Checkpoint keys: {checkpoint['model'].keys()}")
+                model.load_state_dict(checkpoint["model"], strict=False)
+            else:
+                print("Loading weights directly from the root of the checkpoint.")
+                model.load_state_dict(checkpoint)
+                
+        else:
+            if args.finetune != "ViT-L/14":
+                checkpoint = torch.load(args.finetune, map_location="cpu")
+                print(f"Checkpoint keys: {checkpoint.keys()}")  # Debug checkpoint structure
+                if "model_state_dict" in checkpoint:
+                    print("Loading 'model_state_dict' from checkpoint.")
+                    model.load_state_dict(checkpoint["model_state_dict"])
+                elif "model" in checkpoint:
+                    print("Loading 'model' from checkpoint.")
+                    print(f"Checkpoint keys: {checkpoint['model'].keys()}")
+                    model.load_state_dict(checkpoint["model"], strict=False)
+                else:
+                    print("Loading weights directly from the root of the checkpoint.")
+                    model.load_state_dict(checkpoint)
+            if args.vl_feats_type == 'image':
+                model.head = torch.nn.Linear(768, args.nb_classes)
+            elif args.vl_feats_type == 'multimodal':
+                model.head = torch.nn.Linear(2*768, args.nb_classes)
+            trunc_normal_(model.head.weight, std=0.01)
+            model.head = torch.nn.Sequential(torch.nn.BatchNorm1d(model.head.in_features, affine=False, eps=1e-6), model.head)
 
     # freeze all but the head
     for _, p in model.named_parameters():
@@ -323,8 +356,29 @@ def main(args):
     misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
 
     if args.eval:
-        test_stats = evaluate(data_loader_test, model, device)
+        test_stats = evaluate(data_loader_test, model, device, args)
         print(f"AUC of the network on the {len(dataset_test)} test images: {test_stats['overall_auc']:.1f}%")
+        # Print test stats to console
+        print(f"Test Stats for {len(dataset_test)} test images:")
+        for key, value in test_stats.items():
+            print(f"{key}: {value}")
+
+        # Generate specific file name
+        seed = args.seed
+        model_name = args.model_type
+        overall_auc = test_stats.get("overall_auc", "NA")
+
+        # File path: include model name, seed, and AUC in the name
+        results_dir = Path(args.output_dir) / f"test_stats_{model_name}_seed{seed}_auc{overall_auc:.2f}_.csv"
+        # Ensure the directory exists
+        results_dir.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert test_stats dictionary to a pandas DataFrame
+        test_stats_df = pd.DataFrame.from_dict(
+            test_stats, orient='index', columns=['Value'])
+        test_stats_df.to_csv(results_dir)
+
+        print(f"Test stats saved to {results_dir}")
         exit(0)
 
     print(f"Start training for {args.epochs} epochs")

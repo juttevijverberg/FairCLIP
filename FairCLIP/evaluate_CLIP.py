@@ -76,6 +76,7 @@ if __name__ == '__main__':
     auc_head_str = ''
     dpd_head_str = ''
     eod_head_str = ''
+    pdd_head_str = ''
     esacc_head_str = ''
     esauc_head_str = ''
     group_disparity_head_str = ''
@@ -85,13 +86,14 @@ if __name__ == '__main__':
                 auc_head_str += ', '.join([f'auc_attr{i}_group{x}' for x in range(groups_in_attrs[i])]) + ', '
             dpd_head_str += ', '.join([f'dpd_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             eod_head_str += ', '.join([f'eod_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
+            pdd_head_str += ', '.join([f'pdd_head{x}' for x in range(len(groups_in_attrs))]) + ', '
             esacc_head_str += ', '.join([f'esacc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             esauc_head_str += ', '.join([f'esauc_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
 
             group_disparity_head_str += ', '.join([f'std_group_disparity_attr{x}, max_group_disparity_attr{x}' for x in range(len(groups_in_attrs))]) + ', '
             
             with open(best_global_perf_file, 'w') as f:
-                f.write(f'epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_head_str} path\n')
+                f.write(f'epoch, acc, {esacc_head_str} auc, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_head_str} path\n')
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu" # If using GPU then use mixed precision training.
     model, preprocess = clip.load(model_arch_mapping[args.model_arch], device=device, jit=False) #Must set jit=False for training
@@ -148,7 +150,7 @@ if __name__ == '__main__':
         {"params": model.transformer.parameters(), "lr": args.lr},
         {"params": model.visual.parameters(), "lr": args.lr},
     ], lr=args.lr, betas=(0.1, 0.1), eps=1e-6,weight_decay=args.weight_decay)
-    
+
     loss_for_FairCLIP = SamplesLoss(loss="sinkhorn", p=2, blur=args.tmp_hp) # 0.05
 
     if args.pretrained_weights != "":
@@ -213,7 +215,7 @@ if __name__ == '__main__':
 
         logger.log(f'===> epoch[{epoch:03d}/{args.num_epochs:03d}], eval loss: {eval_avg_loss:.4f}')
 
-        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
+        overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity, eval_pdds = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
 
         if best_auc <= overall_auc:
             best_auc = overall_auc
@@ -222,6 +224,7 @@ if __name__ == '__main__':
             best_auc_groups = eval_aucs_by_attrs
             best_dpd_groups = eval_dpds
             best_eod_groups = eval_eods
+            best_pdd_groups = eval_pdds
             best_es_acc = eval_es_acc
             best_es_auc = eval_es_auc
             best_between_group_disparity = between_group_disparity
@@ -265,6 +268,9 @@ if __name__ == '__main__':
             logger.logkv(f'eval_dpd_attr{ii}', round(eval_dpds[ii],4))
         for ii in range(len(eval_eods)):
             logger.logkv(f'eval_eod_attr{ii}', round(eval_eods[ii],4))
+        for ii in range(len(eval_eods)):
+            logger.logkv(f'eval_pdd_attr{ii}', round(eval_pdds[ii], 4))
+    
 
         logger.dumpkvs()
     
@@ -285,8 +291,9 @@ if __name__ == '__main__':
                 
                 dpd_head_str = ', '.join([f'{x:.4f}' for x in best_dpd_groups]) + ', '
                 eod_head_str = ', '.join([f'{x:.4f}' for x in best_eod_groups]) + ', '
+                pdd_head_str = ', '.join([f'{x:.4f}' for x in best_pdd_groups]) + ', '
 
                 path_str = f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}'
-                f.write(f'{best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {group_disparity_str} {path_str}\n')
+                f.write(f'{best_ep}, {best_acc:.4f}, {esacc_head_str} {best_auc:.4f}, {esauc_head_str} {auc_head_str} {dpd_head_str} {eod_head_str} {pdd_head_str} {group_disparity_str} {path_str}\n')
 
     os.rename(args.result_dir, f'{args.result_dir}_seed{args.seed}_auc{best_auc:.4f}')

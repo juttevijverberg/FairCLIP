@@ -1,0 +1,55 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=evaluate_CLIP
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:10:00
+#SBATCH --output=slurm_output_%A.out
+
+DATASET_DIR=./FairVLMed/Dataset/dataset-001
+RESULT_DIR=./results_predict_attr
+MODEL_ARCH=vit-l14  # Options: vit-b16 | vit-l14
+MODALITY_TYPE='slo_fundus'
+LR=1e-5
+BATCH_SIZE=32
+PREDICT='race'
+
+PERF_FILE=${MODEL_ARCH}_${MODALITY_TYPE}_${PREDICT}_eval.csv
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+source activate fairclip
+
+SEED=42
+python ./FairCLIP/evaluate_CLIP_2.py \
+		--dataset_dir ${DATASET_DIR} \
+		--result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH}_${PREDICT} \
+		--lr ${LR} \
+		--perf_file ${PERF_FILE} \
+		--model_arch ${MODEL_ARCH} \
+		--seed ${SEED} \
+		--pretrained_weights ./results_geenfraude/glaucoma_CLIP_vit-l14_seed42_auc0.6914/clip_ep002.pth \
+		--predict ${PREDICT}
+SEED=43
+python ./FairCLIP/evaluate_CLIP_2.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH}_${PREDICT} \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE} \
+                --model_arch ${MODEL_ARCH} \
+                --seed ${SEED} \
+                --pretrained_weights ./results_geenfraude/glaucoma_CLIP_vit-l14_seed43_auc0.6629/clip_ep003.pth \
+                --predict ${PREDICT}
+
+SEED=44
+python ./FairCLIP/evaluate_CLIP_2.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH}_${PREDICT} \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE} \
+                --model_arch ${MODEL_ARCH} \
+                --seed ${SEED} \
+                --pretrained_weights ./results_geenfraude/glaucoma_CLIP_vit-l14_seed44_auc0.7058/clip_ep003.pth \
+                --predict ${PREDICT}

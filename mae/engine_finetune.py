@@ -188,7 +188,7 @@ def evaluate(data_loader, model, device, args):
     all_labels = np.concatenate(all_labels, axis=0)
     all_attrs = np.concatenate(all_attrs, axis=0)
 
-    overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
+    overall_acc, eval_es_acc, overall_auc, eval_es_auc, eval_aucs_by_attrs, eval_dpds, eval_eods, between_group_disparity, eval_pdds = evalute_comprehensive_perf(all_probs, all_labels, all_attrs.T)
     
     test_stats = {
         'overall_acc': overall_acc,
@@ -198,6 +198,7 @@ def evaluate(data_loader, model, device, args):
         'eval_aucs_by_attrs': eval_aucs_by_attrs,
         'eval_dpds': eval_dpds,
         'eval_eods': eval_eods,
+	'eval_pdds': eval_pdds,
         'between_group_disparity': between_group_disparity
     }
 

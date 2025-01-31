@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=lavis_instaleer
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_output_%A.out
+
+# Modules laden en Conda activeren
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+
+source activate fairclip
+
+# Install open3d manually and then install LAVIS
+pip install --no-cache-dir open3d==0.19.0
+pip install --no-cache-dir git+https://github.com/salesforce/LAVIS.git --no-deps
+
+# Test the installation
+python -c "import lavis; print('Lavis installed successfully!')"
+

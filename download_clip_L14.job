@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --partition=gpu_mig
+#SBATCH --gpus=1
+#SBATCH --job-name=evaluate_CLIP
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=01:00:00
+#SBATCH --output=slurm_output_%A.out
+
+# Change to the desired directory where you want to save the file
+cd ./checkpoints
+
+# Download the CLIP ViT-L/14 checkpoint
+wget https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt

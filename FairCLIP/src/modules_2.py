@@ -80,12 +80,13 @@ def count_number_of_groups(input_dataset):
 
 
 class fair_vl_med_dataset(torch.utils.data.Dataset):
-    def __init__(self, dataset_dir='', preprocess=None, files=None, subset='Training', text_source='note', summarized_note_file=None, ruleout_unknown=False):
+    def __init__(self, dataset_dir='', preprocess=None, files=None, subset='Training', text_source='note', summarized_note_file=None, ruleout_unknown=False, predict='glaucoma'):
         self.preprocess = preprocess
         self.dataset_dir = os.path.join(dataset_dir, subset)
         self.subset = subset
         self.text_source = text_source
         self.ruleout_unknown = ruleout_unknown
+        self.predict = predict
 
         self.summarized_notes = {}
         # summarized_note_file is a csv file that contains the summarized notes associated with npz files
@@ -140,14 +141,56 @@ class fair_vl_med_dataset(torch.utils.data.Dataset):
                 token = clip.tokenize(note)
                 token = token.squeeze()
         else:
-            note = 'A photo of non-glaucoma'
-            neg_token = clip.tokenize(note)
+            if self.predict == 'glaucoma':
+                note = 'A photo of non-glaucoma'
+                neg_token = clip.tokenize(note)
 
-            note = 'A photo of glaucoma'
-            pos_token = clip.tokenize(note)
+                note = 'A photo of glaucoma'
+                pos_token = clip.tokenize(note)
 
-            # concatenate two tensors together, the final tensor will be at size of 2, 77
-            token = torch.cat((neg_token, pos_token), dim=0)
+                # concatenate two tensors together, the final tensor will be at size of 2, 77
+                token = torch.cat((neg_token, pos_token), dim=0)
+            elif self.predict == 'race':
+                note = 'A fundus photo of an Asian person'
+                token1 = clip.tokenize(note)
+
+                note = 'A fundus photo of a black person'
+                token2 = clip.tokenize(note)
+
+                note = 'A fundus photo of a white person'
+                token3 = clip.tokenize(note)
+
+                token = torch.cat((token1, token2, token3), dim=0)
+
+            elif self.predict == 'gender':
+                note = 'A fundus photo of a female'
+                neg_token = clip.tokenize(note)
+
+                note = 'A fundus photo of a male'
+                pos_token = clip.tokenize(note)
+
+                token = torch.cat((neg_token, pos_token), dim=0)
+
+            elif self.predict == 'ethnicity':
+                note = 'A fundus photo of a non-Hispanic person'
+                neg_token = clip.tokenize(note)
+
+                note = 'A fundus photo of a Hispanic person'
+                pos_token = clip.tokenize(note)
+
+                token = torch.cat((neg_token, pos_token), dim=0)
+
+            elif self.predict == 'language':
+                note = 'A fundus photo of an English speaking person'
+                token1 = clip.tokenize(note)
+
+                note = 'A fundus photo of a Spanish speaking person'
+                token2 = clip.tokenize(note)
+
+                note = 'A fundus photo of a non-English and non-Spanish speaking person'
+                token3 = clip.tokenize(note)
+
+                token = torch.cat((token1, token2, token3), dim=0)
 
         # extract glaucoma label from npz file
         glaucoma_label = int(data['glaucoma'].item())
@@ -161,11 +204,12 @@ class fair_vl_med_dataset(torch.utils.data.Dataset):
         return slo_fundus, token, label_and_attributes
 
 class fair_vl_group_dataset(torch.utils.data.Dataset):
-    def __init__(self, dataset_dir='', preprocess=None, files=None, subset='Training', text_source='note', summarized_note_file=None, attribute='race', thegroup=0):
+    def __init__(self, dataset_dir='', preprocess=None, files=None, subset='Training', text_source='note', summarized_note_file=None, attribute='race', thegroup=0, predict='glaucoma'):
         self.preprocess = preprocess
         self.dataset_dir = os.path.join(dataset_dir, subset)
         self.subset = subset
         self.text_source = text_source
+        self.predict = predict
 
         self.summarized_notes = {}
         # summarized_note_file is a csv file that contains the summarized notes associated with npz files
@@ -233,14 +277,56 @@ class fair_vl_group_dataset(torch.utils.data.Dataset):
                 token = clip.tokenize(note)
                 token = token.squeeze()
         else:
-            note = 'A photo of non-glaucoma'
-            neg_token = clip.tokenize(note)
+            if self.predict == 'glaucoma':
+                note = 'A photo of non-glaucoma'
+                neg_token = clip.tokenize(note)
 
-            note = 'A photo of glaucoma'
-            pos_token = clip.tokenize(note)
+                note = 'A photo of glaucoma'
+                pos_token = clip.tokenize(note)
 
-            # concatenate two tensors together, the final tensor will be at size of 2, 77
-            token = torch.cat((neg_token, pos_token), dim=0)
+                # concatenate two tensors together, the final tensor will be at size of 2, 77
+                token = torch.cat((neg_token, pos_token), dim=0)
+            elif self.predict == 'race':
+                note = 'A fundus photo of an Asian person'
+                token1 = clip.tokenize(note)
+
+                note = 'A fundus photo of a black person'
+                token2 = clip.tokenize(note)
+
+                note = 'A fundus photo of a white person'
+                token3 = clip.tokenize(note)
+
+                token = torch.cat((token1, token2, token3), dim=0)
+
+            elif self.predict == 'gender':
+                note = 'A fundus photo of a female'
+                neg_token = clip.tokenize(note)
+
+                note = 'A fundus photo of a male'
+                pos_token = clip.tokenize(note)
+
+                token = torch.cat((neg_token, pos_token), dim=0)
+
+            elif self.predict == 'ethnicity':
+                note = 'A fundus photo of a non-Hispanic person'
+                neg_token = clip.tokenize(note)
+
+                note = 'A fundus photo of a Hispanic person'
+                pos_token = clip.tokenize(note)
+
+                token = torch.cat((neg_token, pos_token), dim=0)
+
+            elif self.predict == 'language':
+                note = 'A fundus photo of an English speaking person'
+                token1 = clip.tokenize(note)
+
+                note = 'A fundus photo of a Spanish speaking person'
+                token2 = clip.tokenize(note)
+
+                note = 'A fundus photo of a non-English and non-Spanish speaking person'
+                token2 = clip.tokenize(note)
+
+                token = torch.cat((token1, token2, token3), dim=0)
 
         # extract glaucoma label from npz file
         glaucoma_label = int(data['glaucoma'].item())

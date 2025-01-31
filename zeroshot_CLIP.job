@@ -1,0 +1,49 @@
+#!/bin/bash
+#SBATCH --partition=gpu_a100
+#SBATCH --gpus=1
+#SBATCH --job-name=evaluate_CLIP
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=9
+#SBATCH --time=00:80:00
+#SBATCH --output=slurm_output_%A.out
+
+DATASET_DIR=./FairVLMed/Dataset/dataset-001
+RESULT_DIR=./results_zero_zero
+MODEL_ARCH=vit-l14  # Options: vit-b16 | vit-l14
+MODALITY_TYPE='slo_fundus'
+LR=1e-5
+BATCH_SIZE=32
+
+PERF_FILE=${MODEL_ARCH}_${MODALITY_TYPE}_eval.csv
+
+module purge
+module load 2023
+module load Anaconda3/2023.07-2
+source activate fairclip
+
+SEED=42
+python ./FairCLIP/evaluate_CLIP_zero_zero.py \
+		--dataset_dir ${DATASET_DIR} \
+		--result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH} \
+		--lr ${LR} \
+		--perf_file ${PERF_FILE} \
+		--model_arch ${MODEL_ARCH} \
+		--seed ${SEED}
+
+SEED=43
+python ./FairCLIP/evaluate_CLIP_zero_zero.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH} \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE} \
+                --model_arch ${MODEL_ARCH} \
+                --seed ${SEED}
+
+SEED=44
+python ./FairCLIP/evaluate_CLIP_zero_zero.py \
+                --dataset_dir ${DATASET_DIR} \
+                --result_dir ${RESULT_DIR}/glaucoma_CLIP_${MODEL_ARCH} \
+                --lr ${LR} \
+                --perf_file ${PERF_FILE} \
+                --model_arch ${MODEL_ARCH} \
+                --seed ${SEED}
