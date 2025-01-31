@@ -172,3 +172,5 @@ results_geenfraude/
 results_predict_attr/
 results_vision_only/
 mae/results/
+checkpoints/
+checkpoints/ViT-L-14.pt
